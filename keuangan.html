@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Buku Kas Pribadi</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     body {
@@ -40,7 +41,6 @@
       <h1 class="text-xl font-bold tracking-tight">Catatan Keuangan</h1>
       <p class="mt-1 text-xs text-slate-400">Masukkan 6 digit PIN keamanan untuk melanjutkan</p>
 
-      <!-- Indikator Titik PIN -->
       <div class="my-7 flex justify-center gap-3" id="pinDots">
         <span class="pin-dot h-3.5 w-3.5 rounded-full border-2 border-slate-600"></span>
         <span class="pin-dot h-3.5 w-3.5 rounded-full border-2 border-slate-600"></span>
@@ -52,7 +52,6 @@
 
       <p id="pinError" class="mb-4 h-4 text-xs font-medium text-rose-400"></p>
 
-      <!-- Keypad Angka -->
       <div class="grid grid-cols-3 gap-3">
         <button onclick="pressPin('1')" class="h-14 rounded-2xl bg-slate-800 text-lg font-semibold hover:bg-slate-700 active:scale-95 transition">1</button>
         <button onclick="pressPin('2')" class="h-14 rounded-2xl bg-slate-800 text-lg font-semibold hover:bg-slate-700 active:scale-95 transition">2</button>
@@ -71,22 +70,42 @@
   </div>
 
   <!-- APLIKASI UTAMA -->
-  <div id="mainApp" class="hidden mx-auto max-w-4xl px-4 py-6 pb-20">
+  <div id="mainApp" class="hidden mx-auto max-w-5xl px-4 py-6 pb-20">
     
-    <!-- Header & Filter Bulan -->
-    <header class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <!-- Header, Filter & Ekspor -->
+    <header class="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
       <div>
-        <h1 class="text-2xl font-bold text-slate-800">Arus Kas Pribadi</h1>
+        <h1 class="text-2xl font-bold text-slate-800">Arus Kas & Laporan</h1>
         <p class="text-xs text-slate-500">Tersinkronisasi otomatis dengan Google Sheets</p>
       </div>
-      <div class="flex items-center gap-2">
-        <input type="month" id="filterBulan" onchange="renderDashboard()" class="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-sm focus:border-teal-600 focus:outline-none" />
-        <button onclick="fetchData()" title="Muat Ulang Data" class="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-600 shadow-sm hover:bg-slate-50 active:scale-95 transition">
+      <div class="flex flex-wrap items-center gap-2">
+        <!-- Filter Pos Kas Opsional -->
+        <select id="filterPos" onchange="renderDashboard()" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm focus:border-teal-600 focus:outline-none">
+          <option value="Semua">Semua Kas</option>
+          <option value="Pribadi">Kas Pribadi</option>
+          <option value="Usaha">Kas Usaha</option>
+        </select>
+
+        <!-- Filter Bulan -->
+        <input type="month" id="filterBulan" onchange="renderDashboard()" class="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm focus:border-teal-600 focus:outline-none" />
+
+        <!-- Tombol Ekspor Laporan CSV/Excel -->
+        <button onclick="exportToCSV()" title="Unduh Laporan Bulan Ini (Excel/CSV)" class="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-700 active:scale-95 transition">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          <span>Ekspor Laporan</span>
+        </button>
+
+        <!-- Tombol Refresh -->
+        <button onclick="fetchData()" title="Muat Ulang Data" class="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 shadow-sm hover:bg-slate-50 active:scale-95 transition">
           <svg id="refreshIcon" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
         </button>
-        <button onclick="lockApp()" title="Kunci Aplikasi" class="rounded-xl border border-slate-200 bg-white p-2.5 text-rose-600 shadow-sm hover:bg-rose-50 active:scale-95 transition">
+
+        <!-- Tombol Kunci -->
+        <button onclick="lockApp()" title="Kunci Aplikasi" class="rounded-xl border border-slate-200 bg-white p-2 text-rose-600 shadow-sm hover:bg-rose-50 active:scale-95 transition">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
           </svg>
@@ -107,6 +126,32 @@
       <div class="glass-card rounded-2xl p-5 border-l-4 border-l-teal-600">
         <p class="text-xs font-medium text-slate-500">Selisih / Sisa Kas</p>
         <p id="sisaSaldo" class="mt-1.5 text-xl font-bold text-slate-800">Rp 0</p>
+      </div>
+    </section>
+
+    <!-- BAGIAN GRAFIK VISUAL -->
+    <section class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-12">
+      <!-- Grafik Tren 6 Bulan -->
+      <div class="glass-card rounded-2xl p-5 lg:col-span-7">
+        <div class="mb-3 flex items-center justify-between">
+          <h2 class="text-sm font-bold text-slate-800">Grafik Arus Kas 6 Bulan Terakhir</h2>
+          <span class="text-[11px] text-slate-400">Pemasukan vs Pengeluaran</span>
+        </div>
+        <div class="relative h-56 w-full">
+          <canvas id="monthlyBarChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Grafik Proporsi Pengeluaran Bulan Ini -->
+      <div class="glass-card rounded-2xl p-5 lg:col-span-5">
+        <div class="mb-3 flex items-center justify-between">
+          <h2 class="text-sm font-bold text-slate-800">Proporsi Pengeluaran</h2>
+          <span class="text-[11px] text-slate-400">Bulan Terpilih</span>
+        </div>
+        <div class="relative flex h-56 w-full items-center justify-center">
+          <canvas id="categoryDoughnutChart"></canvas>
+          <p id="emptyChartMsg" class="hidden text-xs text-slate-400">Belum ada data pengeluaran bulan ini</p>
+        </div>
       </div>
     </section>
 
@@ -145,9 +190,18 @@
               </div>
             </div>
 
-            <div>
-              <label class="mb-1 block text-xs font-medium text-slate-600">Jenis / Kategori</label>
-              <select id="kategori" required class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-medium focus:border-teal-600 focus:outline-none"></select>
+            <div class="grid grid-cols-3 gap-3">
+              <div class="col-span-2">
+                <label class="mb-1 block text-xs font-medium text-slate-600">Jenis / Kategori</label>
+                <select id="kategori" required class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-medium focus:border-teal-600 focus:outline-none"></select>
+              </div>
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-600">Pos Kas</label>
+                <select id="pos" class="w-full rounded-xl border border-slate-200 px-2.5 py-2.5 text-xs font-medium text-slate-700 focus:border-teal-600 focus:outline-none">
+                  <option value="Pribadi">Pribadi</option>
+                  <option value="Usaha">Usaha</option>
+                </select>
+              </div>
             </div>
 
             <div>
@@ -172,7 +226,7 @@
         
         <!-- Rincian Per Kategori Bulan Terpilih -->
         <div class="glass-card rounded-2xl p-5">
-          <h2 class="mb-3 text-sm font-bold text-slate-800">Ringkasan Kategori Bulan Ini</h2>
+          <h2 class="mb-3 text-sm font-bold text-slate-800">Rincian Angka Per Kategori</h2>
           <div id="categorySummary" class="flex flex-wrap gap-2 text-xs">
             <span class="text-slate-400">Memuat data...</span>
           </div>
@@ -189,7 +243,7 @@
             </select>
           </div>
 
-          <div id="trxList" class="space-y-2.5 max-h-[460px] overflow-y-auto pr-1">
+          <div id="trxList" class="space-y-2.5 max-h-[440px] overflow-y-auto pr-1">
             <p class="py-8 text-center text-xs text-slate-400">Mengambil catatan dari Google Sheets...</p>
           </div>
         </div>
@@ -229,6 +283,8 @@
 
     let currentPin = '';
     let allTransactions = [];
+    let barChartInstance = null;
+    let doughnutChartInstance = null;
 
     // ==========================================
     // LOGIKA PIN KEAMANAN
@@ -237,9 +293,7 @@
       if (currentPin.length < 6) {
         currentPin += num;
         updatePinDots();
-        if (currentPin.length === 6) {
-          setTimeout(verifyPin, 150);
-        }
+        if (currentPin.length === 6) setTimeout(verifyPin, 150);
       }
     }
 
@@ -284,7 +338,6 @@
       document.getElementById('pinScreen').classList.remove('hidden');
     }
 
-    // Dukungan keyboard fisik untuk PIN di laptop
     document.addEventListener('keydown', (e) => {
       if (!document.getElementById('pinScreen').classList.contains('hidden')) {
         if (e.key >= '0' && e.key <= '9') pressPin(e.key);
@@ -342,7 +395,7 @@
       icon.classList.add('animate-spin');
 
       try {
-        const res = await fetch(`${SCRIPT_URL}?pin=${CORRECT_PIN}`);
+        const res = await fetch(`${SCRIPT_URL}?pin=${CORRECT_PIN}&t=${Date.now()}`);
         const json = await res.json();
         if (json.status === 'success') {
           allTransactions = json.data;
@@ -372,7 +425,8 @@
         kategori: document.getElementById('kategori').value,
         nominal: document.getElementById('nominal').value,
         metode: document.getElementById('metode').value,
-        keterangan: document.getElementById('keterangan').value
+        keterangan: document.getElementById('keterangan').value,
+        pos: document.getElementById('pos').value
       };
 
       try {
@@ -406,22 +460,33 @@
           body: JSON.stringify({ action: 'delete', pin: CORRECT_PIN, id: id })
         });
         const json = await res.json();
-        if (json.status === 'success') {
-          await fetchData();
-        }
+        if (json.status === 'success') await fetchData();
       } catch (err) {
         alert('Gagal menghapus data.');
       }
     }
 
     // ==========================================
-    // RENDER TAMPILAN & REKAP BULANAN
+    // RENDER DASHBOARD & GRAFIK BULANAN
     // ==========================================
+    function getFilteredByPos() {
+      const selectedPos = document.getElementById('filterPos').value;
+      return allTransactions.filter(t => {
+        const pos = t.pos || 'Pribadi';
+        return selectedPos === 'Semua' || pos === selectedPos;
+      });
+    }
+
     function renderDashboard() {
       const selectedBulan = document.getElementById('filterBulan').value;
       const selectedTipe = document.getElementById('filterTipe').value;
+      const posFilteredData = getFilteredByPos();
 
-      const monthlyData = allTransactions.filter(t => String(t.bulan).startsWith(selectedBulan));
+      const monthlyData = posFilteredData.filter(t => {
+        const tgl = String(t.tanggal || '');
+        const bln = String(t.bulan || '');
+        return tgl.startsWith(selectedBulan) || bln.startsWith(selectedBulan);
+      });
 
       let masuk = 0;
       let keluar = 0;
@@ -444,7 +509,7 @@
       sisaEl.textContent = formatRupiah(sisa);
       sisaEl.className = `mt-1.5 text-xl font-bold ${sisa >= 0 ? 'text-teal-700' : 'text-rose-600'}`;
 
-      // Render Ringkasan Kategori Pengeluaran
+      // Render Ringkasan Kategori
       const catEl = document.getElementById('categorySummary');
       const entries = Object.entries(katMap).sort((a, b) => b[1] - a[1]);
       if (entries.length === 0) {
@@ -464,38 +529,206 @@
 
       if (filteredList.length === 0) {
         listEl.innerHTML = `<p class="py-8 text-center text-xs text-slate-400">Tidak ada catatan transaksi pada periode ini.</p>`;
+      } else {
+        listEl.innerHTML = filteredList.map(t => {
+          const isMasuk = t.tipe === 'Pemasukan';
+          const posLabel = t.pos || 'Pribadi';
+          return `
+            <div class="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/70 p-3.5 hover:bg-slate-50 transition">
+              <div class="min-w-0 pr-3">
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <span class="inline-block rounded-md px-2 py-0.5 text-[10px] font-bold ${isMasuk ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">
+                    ${t.kategori}
+                  </span>
+                  <span class="inline-block rounded-md bg-slate-200/70 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
+                    ${posLabel}
+                  </span>
+                  <span class="text-[11px] text-slate-400">${t.tanggal} • ${t.metode}</span>
+                </div>
+                <p class="mt-1 truncate text-xs font-semibold text-slate-800">${t.keterangan}</p>
+              </div>
+              <div class="flex items-center gap-3 shrink-0">
+                <span class="text-xs font-bold ${isMasuk ? 'text-emerald-600' : 'text-rose-600'}">
+                  ${isMasuk ? '+' : '-'} ${formatRupiah(t.nominal)}
+                </span>
+                <button onclick="deleteTransaction('${t.id}')" title="Hapus" class="text-slate-300 hover:text-rose-500 transition">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      renderCharts(posFilteredData, selectedBulan, entries);
+    }
+
+    function renderCharts(posFilteredData, selectedBulan, categoryEntries) {
+      // 1. Hitung 6 bulan terakhir mundur dari bulan yang dipilih
+      const [selYear, selMonth] = selectedBulan.split('-').map(Number);
+      const last6Months = [];
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(selYear, selMonth - 1 - i, 1);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        last6Months.push(`${y}-${m}`);
+      }
+
+      const masukSeries = last6Months.map(ym => {
+        return posFilteredData
+          .filter(t => (String(t.tanggal || '').startsWith(ym) || String(t.bulan || '').startsWith(ym)) && t.tipe === 'Pemasukan')
+          .reduce((sum, t) => sum + t.nominal, 0);
+      });
+
+      const keluarSeries = last6Months.map(ym => {
+        return posFilteredData
+          .filter(t => (String(t.tanggal || '').startsWith(ym) || String(t.bulan || '').startsWith(ym)) && t.tipe === 'Pengeluaran')
+          .reduce((sum, t) => sum + t.nominal, 0);
+      });
+
+      // Render Bar Chart
+      const barCtx = document.getElementById('monthlyBarChart').getContext('2d');
+      if (barChartInstance) barChartInstance.destroy();
+      barChartInstance = new Chart(barCtx, {
+        type: 'bar',
+        data: {
+          labels: last6Months,
+          datasets: [
+            {
+              label: 'Pemasukan',
+              data: masukSeries,
+              backgroundColor: '#10b981',
+              borderRadius: 6
+            },
+            {
+              label: 'Pengeluaran',
+              data: keluarSeries,
+              backgroundColor: '#f43f5e',
+              borderRadius: 6
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                font: { size: 10 },
+                callback: val => 'Rp ' + (val / 1000) + 'rb'
+              }
+            },
+            x: { ticks: { font: { size: 11 } } }
+          }
+        }
+      });
+
+      // 2. Render Doughnut Chart Kategori
+      const doughnutCanvas = document.getElementById('categoryDoughnutChart');
+      const emptyMsg = document.getElementById('emptyChartMsg');
+
+      if (doughnutChartInstance) doughnutChartInstance.destroy();
+
+      if (categoryEntries.length === 0) {
+        doughnutCanvas.classList.add('hidden');
+        emptyMsg.classList.remove('hidden');
+      } else {
+        doughnutCanvas.classList.remove('hidden');
+        emptyMsg.classList.add('hidden');
+
+        const palette = ['#0f766e', '#f43f5e', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#64748b', '#84cc16'];
+        doughnutChartInstance = new Chart(doughnutCanvas.getContext('2d'), {
+          type: 'doughnut',
+          data: {
+            labels: categoryEntries.map(e => e[0]),
+            datasets: [{
+              data: categoryEntries.map(e => e[1]),
+              backgroundColor: palette.slice(0, categoryEntries.length),
+              borderWidth: 2,
+              borderColor: '#ffffff'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '62%',
+            plugins: {
+              legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 } } }
+            }
+          }
+        });
+      }
+    }
+
+    // ==========================================
+    // EKSPOR LAPORAN KE CSV / EXCEL
+    // ==========================================
+    function exportToCSV() {
+      const selectedBulan = document.getElementById('filterBulan').value;
+      const selectedPos = document.getElementById('filterPos').value;
+      const posFilteredData = getFilteredByPos();
+
+      const monthlyData = posFilteredData.filter(t => {
+        const tgl = String(t.tanggal || '');
+        const bln = String(t.bulan || '');
+        return tgl.startsWith(selectedBulan) || bln.startsWith(selectedBulan);
+      });
+
+      if (monthlyData.length === 0) {
+        alert('Tidak ada data transaksi pada bulan ' + selectedBulan + ' untuk diekspor.');
         return;
       }
 
-      listEl.innerHTML = filteredList.map(t => {
-        const isMasuk = t.tipe === 'Pemasukan';
-        return `
-          <div class="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/70 p-3.5 hover:bg-slate-50 transition">
-            <div class="min-w-0 pr-3">
-              <div class="flex items-center gap-2">
-                <span class="inline-block rounded-md px-2 py-0.5 text-[10px] font-bold ${isMasuk ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">
-                  ${t.kategori}
-                </span>
-                <span class="text-[11px] text-slate-400">${t.tanggal} • ${t.metode}</span>
-              </div>
-              <p class="mt-1 truncate text-xs font-semibold text-slate-800">${t.keterangan}</p>
-            </div>
-            <div class="flex items-center gap-3 shrink-0">
-              <span class="text-xs font-bold ${isMasuk ? 'text-emerald-600' : 'text-rose-600'}">
-                ${isMasuk ? '+' : '-'} ${formatRupiah(t.nominal)}
-              </span>
-              <button onclick="deleteTransaction('${t.id}')" title="Hapus" class="text-slate-300 hover:text-rose-500 transition">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        `;
-      }).join('');
+      let totalMasuk = 0;
+      let totalKeluar = 0;
+
+      const rows = [
+        ['LAPORAN ARUS KAS BULANAN'],
+        ['Periode', selectedBulan],
+        ['Filter Pos Kas', selectedPos],
+        [],
+        ['No', 'Tanggal', 'Tipe', 'Pos Kas', 'Kategori', 'Nominal (Rp)', 'Metode', 'Keterangan']
+      ];
+
+      monthlyData.forEach((t, index) => {
+        if (t.tipe === 'Pemasukan') totalMasuk += t.nominal;
+        else totalKeluar += t.nominal;
+
+        rows.push([
+          index + 1,
+          t.tanggal,
+          t.tipe,
+          t.pos || 'Pribadi',
+          `"${t.kategori}"`,
+          t.nominal,
+          `"${t.metode}"`,
+          `"${String(t.keterangan).replace(/"/g, '""')}"`
+        ]);
+      });
+
+      rows.push([]);
+      rows.push(['', '', '', '', 'Total Pemasukan', totalMasuk]);
+      rows.push(['', '', '', '', 'Total Pengeluaran', totalKeluar]);
+      rows.push(['', '', '', '', 'Selisih / Sisa Kas', totalMasuk - totalKeluar]);
+
+      const csvContent = '\uFEFF' + rows.map(r => r.join(';')).join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Laporan_Keuangan_${selectedBulan}_${selectedPos}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
 
-    // Cek sesi login saat halaman dimuat
     if (sessionStorage.getItem('kas_unlocked') === 'true') {
       document.getElementById('pinScreen').classList.add('hidden');
       document.getElementById('mainApp').classList.remove('hidden');
